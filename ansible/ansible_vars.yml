@@ -1,0 +1,3 @@
+---
+app_url: https://releases.wikimedia.org/mediawiki/1.36/mediawiki-1.36.1.tar.gz
+app_conf_folder: /opt/rh/httpd24/root/etc/httpd/conf/

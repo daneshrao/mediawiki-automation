@@ -1,0 +1,71 @@
+---
+- hosts: webservers
+  become: yes
+  gather_facts: false
+  tasks:
+    - include_vars: ansible_vars.yml
+    - set_fact:
+        tar_var: "{{ app_url.split('/') }}"
+    - name: "Updating the repo"
+      yum: update_cache=yes
+
+    - name: base repo for r-php
+      become: yes
+      shell: |
+        yum install centos-release-scl
+
+    - name: install lamp stack
+      yum:
+        pkg:
+          - httpd24-httpd
+          - rh-php73
+          - rh-php73-php
+          - rh-php73-php-mbstring
+          - rh-php73-php-mysqlnd
+          - rh-php73-php-gd
+          - rh-php73-php-xml
+          - rh-php73-php-intl
+        state: removed
+        update_cache: yes
+
+    - name: enable httpd service
+      become: yes
+      service:
+        name: httpd24-httpd
+        state: reloaded
+        use: service
+
+    - name: Create a artifact directory
+      become: yes
+      file:
+        path: /opt/mediawiki
+        state: directory
+        mode: 0755
+        owner: ansible
+
+    - name: Download application contents
+      become: yes
+      get_url:
+        url: "{{ app_url }}"
+        dest: /opt/mediawiki
+        mode: 0755
+        group: ansible
+        owner: ansible
+
+    - name: extract tar and sanitize the contents of httpd
+      become: yes
+      shell: |
+        cd /opt/rh/httpd24/root/var/www
+        tar -xvzf /opt/mediawiki/{{ tar_var[-1] }}
+        ln -s mediawiki-1.36.1/ mediawiki
+        chown -R apache:apache /opt/rh/httpd24/root/var/www/mediawiki
+
+    - name: Replace the content of my file
+      copy:
+        src: ./httpd.conf
+        dest: "{{ app_conf_folder }}"
+
+    - name: restart httpd
+      service:
+        name: httpd24-httpd
+        state: restarted
